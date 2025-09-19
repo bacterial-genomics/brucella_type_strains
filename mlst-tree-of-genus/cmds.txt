@@ -1,0 +1,28 @@
+# Manually download profile .txt and allele FastA files as .tfa from https://pubmlst.org/data
+
+# Use the database files to create ST-# FastA for each, also concatenate into single records
+ml miniconda
+conda activate bpy2
+./get_allele_seqs_from_PubMLST_db.py -p profiles_csv.txt
+    # locus_names ['gap', 'aroA', 'glk', 'dnaK', 'gyrB', 'trpE', 'cobQ', 'int_hyp', 'omp25']
+    # Found 122 STs, and will produce FastA files for each...
+mkdir db
+mv *.tfa profiles_csv.txt db/
+
+# Merge all ST-# concatenated files and align them
+ls concat_ST-*.fas | xargs cat > 122_Brucella_concat_MLSTs.fa
+muscle -align 122_Brucella_concat_MLSTs.fa -output 122_Brucella_concat_MLSTs.fa.aln
+    # Input: 122 seqs, avg length 3476, max 3479, min 3476
+    # 00:00 5.1Mb   100.0% Derep 107 uniques, 15 dupes
+
+# Make phylip format for RAxML
+python ~/scripts/fasta2phylip.py 122_Brucella_concat_MLSTs.fa.aln 122_Brucella_concat_MLSTs.fa.aln.phy
+
+# Cleanup a bit more
+mkdir ST-sequences
+mv *.fas *.fa *.aln ST-sequences/
+
+# Infer a GTR tree of all 122 ST-#s
+ml raxml
+raxmlHPC-PTHREADS -T 16 -f a -s 122_Brucella_concat_MLSTs.fa.aln.phy -n Brucella_MLSTs -p 654321 -x 54321 -N 100 -m GTRGAMMA
+
